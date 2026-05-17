@@ -1,0 +1,21 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: fin-gateway
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 192.168.88.130:8848 # 极其关键：大堂经理必须去这里找人！
+    gateway:
+      routes:
+        - id: acc_svc_route
+          uri: lb://fin-account # 极其关键：必须和 fin-account 的名字一模一样！
+          predicates:
+            - Path=/api/acct/**
+        # 第二条：流水服务大门 (🔥 新增的)
+        - id: ledger_svc_route
+          uri: lb://fin-ledger   # 必须和 fin-ledger 里的 spring.application.name 一致
+          predicates:
+            - Path=/api/ledger/**

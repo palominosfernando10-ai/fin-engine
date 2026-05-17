@@ -1,0 +1,29 @@
+server:
+  port: 8082 # 账务微服务端口
+
+spring:
+  application:
+    name: fin-ledger # 注册到Nacos的名字
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 192.168.88.130:8848
+
+  # 连接 ledger_db 账务库
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://192.168.88.130:3306/ledger_db?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai
+    username: root
+    password: 1234
+
+  # 连接 RabbitMQ
+  rabbitmq:
+    host: 192.168.88.130
+    port: 5672
+    username: admin
+    password: admin123
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl

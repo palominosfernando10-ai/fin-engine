@@ -1,0 +1,39 @@
+server:
+  port: 8081 # 账户微服务端口
+
+spring:
+  application:
+    name: fin-account # 注册到Nacos的服务名称
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 192.168.88.130:8848 # 你的Linux虚拟机Nacos地址
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    # 连接你刚才建好的 account_db 数据库
+    url: jdbc:mysql://192.168.88.130:3306/account_db?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai
+    username: root
+    password: 1234
+
+  # RabbitMQ 配置 (注意缩进，它是 spring 的子层级)
+  rabbitmq:
+    host: 192.168.88.130 # 你的虚拟机IP
+    port: 5672
+    username: admin # 咱们在 docker-compose 里设定的账号
+    password: admin123
+
+  # 之前可能写的是 spring.redis，请务必改为 spring.data.redis
+  data:
+    redis:
+      host: 192.168.88.130
+      port: 6379
+      password: root123
+      database: 0
+      # 建议加上超时配置，防止网络波动
+      timeout: 5000ms
+# MyBatis-Plus 配置
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true # 开启驼峰命名自动映射
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl # 在控制台打印底层SQL，方便找Bug

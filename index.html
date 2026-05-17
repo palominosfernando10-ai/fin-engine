@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>超级金融微服务核心后台</title>
+    <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css" />
+    <style>
+        body { font-family: "Helvetica Neue",Helvetica,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",Arial,sans-serif; background-color: #f2f5f9; margin: 0; padding: 20px; }
+        .app-container { max-width: 1000px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ebeef5; padding-bottom: 15px; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <div id="app" class="app-container">
+        <div class="header">
+            <h2>🏦 金融账户微服务管理后台</h2>
+            <el-input v-model="authToken" placeholder="请输入 X-Fin-Auth-Key" style="width: 300px;">
+                <template #prepend>安检口令</template>
+            </el-input>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+            <el-button type="primary" @click="fetchData" :loading="loading">刷新账户列表</el-button>
+            <el-button type="danger" @click="payDialogVisible = true">模拟发起扣款</el-button>
+        </div>
+
+        <el-table :data="tableData" border stripe style="width: 100%" v-loading="loading">
+            <el-table-column prop="id" label="账户ID" width="80" align="center"></el-table-column>
+            <el-table-column prop="accountNo" label="财务账号" width="180"></el-table-column>
+            <el-table-column prop="balance" label="当前余额 (元)" align="right">
+                <template #default="scope">
+                    <strong style="color: #f56c6c; font-size: 16px;">¥ {{ scope.row.balance }}</strong>
+                </template>
+            </el-table-column>
+            <el-table-column label="操作" width="120" align="center">
+                <template #default="scope">
+                    <el-button size="small" type="success" @click="openLedger(scope.row.accountNo)">查流水</el-button>
+                </template>
+            </el-table-column>
+        </el-table>
+
+        <div style="margin-top: 20px; display: flex; justify-content: flex-end;">
+            <el-pagination background layout="prev, pager, next, total" :total="total" :page-size="pageSize" v-model:current-page="pageNo" @current-change="fetchData"></el-pagination>
+        </div>
+
+        <el-dialog v-model="payDialogVisible" title="发起金融扣款指令" width="400px">
+            <el-form label-width="100px">
+                <el-form-item label="目标账户 ID"><el-input v-model="payForm.uid" placeholder="请输入账户ID"></el-input></el-form-item>
+                <el-form-item label="扣款金额"><el-input v-model="payForm.amt" placeholder="请输入金额"></el-input></el-form-item>
+            </el-form>
+            <template #footer>
+                <el-button @click="payDialogVisible = false">取消</el-button>
+                <el-button type="danger" @click="handlePay" :loading="payLoading">确认扣款</el-button>
+            </template>
+        </el-dialog>
+
+        <el-dialog v-model="ledgerDialogVisible" title="历史财务流水记录" width="600px">
+            <el-table :data="ledgerData" border stripe v-loading="ledgerLoading">
+                <el-table-column prop="tradeNo" label="凭证号" width="220"></el-table-column>
+                <el-table-column prop="drCr" label="借/贷" width="80" align="center">
+                    <template #default="scope">
+                        <el-tag :type="scope.row.drCr === 'DR' ? 'warning' : 'success'">{{ scope.row.drCr }}</el-tag>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="amount" label="发生金额" align="right"></el-table-column>
+                <el-table-column prop="createTime" label="记账时间" width="180"></el-table-column>
+            </el-table>
+        </el-dialog>
+    </div>
+
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/element-plus"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+
+    <script>
+        const { createApp, ref, onMounted } = Vue;
+        const app = createApp({
+            setup() {
+                const authToken = ref('super-admin-999');
+                const tableData = ref([]); const total = ref(0); const pageNo = ref(1); const pageSize = ref(3);
+                const loading = ref(false); const payDialogVisible = ref(false); const payLoading = ref(false);
+                const payForm = ref({ uid: '', amt: '' });
+                
+                // 🔥 新增流水相关的状态
+                const ledgerDialogVisible = ref(false);
+                const ledgerData = ref([]);
+                const ledgerLoading = ref(false);
+
+                const request = axios.create({ baseURL: 'http://localhost:8080', timeout: 5000 });
+                request.interceptors.request.use(config => {
+                    if (authToken.value) config.headers['X-Fin-Auth-Key'] = authToken.value;
+                    return config;
+                });
+
+                const fetchData = async () => {
+                    loading.value = true;
+                    try {
+                        const res = await request.get('/api/acct/test-page', { params: { pageNo: pageNo.value, pageSize: pageSize.value } });
+                        if (res.data.code === 200) { tableData.value = res.data.data.records; total.value = res.data.data.total; }
+                    } finally { loading.value = false; }
+                };
+
+                const handlePay = async () => {
+                    payLoading.value = true;
+                    try {
+                        const res = await request.post('/api/acct/pay', null, { params: { uid: payForm.value.uid, amt: payForm.value.amt } });
+                        if (res.data.code === 200) {
+                            ElementPlus.ElMessage.success(res.data.data);
+                            payDialogVisible.value = false;
+                            fetchData(); 
+                        } else {
+                            ElementPlus.ElMessage.error(res.data.msg);
+                        }
+                    } finally { payLoading.value = false; }
+                };
+
+                // 🔥 新增：打开流水弹窗并请求数据
+                const openLedger = async (accountNo) => {
+                    ledgerDialogVisible.value = true;
+                    ledgerLoading.value = true;
+                    try {
+                        // 访问网关的 /api/ledger 路径，网关会自动转发给 fin-ledger！
+                        const res = await request.get('/api/ledger/history', { params: { accountNo: accountNo } });
+                        if (res.data.code === 200) {
+                            ledgerData.value = res.data.data;
+                        } else {
+                            ElementPlus.ElMessage.error("查账失败");
+                        }
+                    } finally {
+                        ledgerLoading.value = false;
+                    }
+                };
+
+                onMounted(() => { fetchData(); });
+
+                return {
+                    authToken, tableData, total, pageNo, pageSize, loading, fetchData, 
+                    payDialogVisible, payLoading, payForm, handlePay,
+                    ledgerDialogVisible, ledgerData, ledgerLoading, openLedger // 暴露新方法
+                };
+            }
+        });
+        app.use(ElementPlus);
+        app.mount('#app');
+    </script>
+</body>
+</html>
